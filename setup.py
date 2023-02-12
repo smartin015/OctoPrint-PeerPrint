@@ -33,7 +33,7 @@ plugin_url = "https://github.com/smartin015/OctoPrint-PeerPrint"
 plugin_license = "AGPLv3"
 
 # Any additional requirements besides OctoPrint should be listed here
-plugin_requires = []
+plugin_requires = ["peerprint==0.2.0"]
 
 ### --------------------------------------------------------------------------------------------------------------------
 ### More advanced options that you usually shouldn't have to touch follow after this point

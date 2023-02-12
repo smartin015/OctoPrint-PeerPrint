@@ -1,61 +1,40 @@
 # coding=utf-8
 from __future__ import absolute_import
 
-### (Don't forget to remove me)
-# This is a basic skeleton for your plugin's __init__.py. You probably want to adjust the class name of your plugin
-# as well as the plugin mixins it's subclassing from. This is really just a basic skeleton to get you started,
-# defining your plugin as a template plugin, settings and asset plugin. Feel free to add or remove mixins
-# as necessary.
-#
-# Take a look at the documentation on what other plugin mixins are available.
-
 import octoprint.plugin
+from .plugin import Plugin
+from .data import ASSETS, update_info, Keys, TEMPLATES
 
-class Octoprint_peerprintPlugin(octoprint.plugin.SettingsPlugin,
+class PeerprintPlugin(octoprint.plugin.SettingsPlugin,
     octoprint.plugin.AssetPlugin,
-    octoprint.plugin.TemplatePlugin
+    octoprint.plugin.TemplatePlugin,
+    octoprint.plugin.StartupPlugin
 ):
 
+    def on_after_startup(self):
+        self._plugin = Plugin(
+            self._settings,
+            self._file_manager,
+            self.get_plugin_data_folder(),
+            self._logger,
+        )
+        self._plugin.start()
+    
     ##~~ SettingsPlugin mixin
 
     def get_settings_defaults(self):
-        return {
-            # put your plugin's default settings here
-        }
-
-    ##~~ AssetPlugin mixin
+        return dict(
+            [(member.setting, member.default) for member in Keys.__members__.values()]
+        )
 
     def get_assets(self):
-        # Define your plugin's asset files to automatically include in the
-        # core UI here.
-        return {
-            "js": ["js/octoprint_peerprint.js"],
-            "css": ["css/octoprint_peerprint.css"],
-            "less": ["less/octoprint_peerprint.less"]
-        }
+        return ASSETS
 
-    ##~~ Softwareupdate hook
+    def get_template_configs(self):
+        return TEMPLATES
 
     def get_update_information(self):
-        # Define the configuration for your plugin to use with the Software Update
-        # Plugin here. See https://docs.octoprint.org/en/master/bundledplugins/softwareupdate.html
-        # for details.
-        return {
-            "octoprint_peerprint": {
-                "displayName": "Octoprint_peerprint Plugin",
-                "displayVersion": self._plugin_version,
-
-                # version check: github repository
-                "type": "github_release",
-                "user": "smartin015",
-                "repo": "OctoPrint-PeerPrint",
-                "current": self._plugin_version,
-
-                # update method: pip
-                "pip": "https://github.com/smartin015/OctoPrint-PeerPrint/archive/{target_version}.zip",
-            }
-        }
-
+        return update_info(self._plugin_version)
 
 # If you want your plugin to be registered within OctoPrint under a different name than what you defined in setup.py
 # ("OctoPrint-PluginSkeleton"), you may define that here. Same goes for the other metadata derived from setup.py that
@@ -70,7 +49,7 @@ __plugin_pythoncompat__ = ">=3,<4"  # Only Python 3
 
 def __plugin_load__():
     global __plugin_implementation__
-    __plugin_implementation__ = Octoprint_peerprintPlugin()
+    __plugin_implementation__ = PeerprintPlugin()
 
     global __plugin_hooks__
     __plugin_hooks__ = {

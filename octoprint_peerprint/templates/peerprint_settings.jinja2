@@ -1,0 +1,30 @@
+<legend>PeerPrint</legend>
+
+<p>
+ <strong><a href="https://github.com/smartin015/peerprint" target="_blank">PeerPrint</a></strong> is an open framework for decentralized 3D printing networks. PeerPrint provides both local (LAN) and global (WAN) networks and supports encrypted, secure queueing.
+</p>
+
+<h4>Server</h4>
+<p>
+  PeerPrint can run as a server on its own, or you can have OctoPrint start a subprocess on the device that's running OctoPrint.
+</p>
+<p>
+  If you experience slowness with the default server, try hosting it on a separate device to reduce load on your OctoPrint server.
+</p>
+<form class="form-horizontal"><fieldset>
+  <div class="control-group" title="Address of peerprint server - e.g. localhost:6789. If you wish to auto-host a server, leave this empty">
+    <label class="control-label">PeerPrint server address:</label>
+    <div class="controls">
+      <input type="text" placeholder="Leave empty for built-in server" data-bind="value: settings.plugins.octoprint_peerprint.peerprint_server_addr"></input>
+    </div>
+  </div>
+</fieldset></form>
+
+
+<h4>Queues & More</h4>
+
+<p>All other PeerPrint settings are configured on the PeerPrint server.</p>
+
+<a target="_blank" data-bind="attr: {href: settings.plugins.octoprint_peerprint.peerprint_server_addr() || 'http://localhost:8334'} ">Click here</a> to visit the server settings page.
+
+
