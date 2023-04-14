@@ -1,11 +1,14 @@
 from .data import Keys, PRINT_FILE_DIR
+import shutil
 from octoprint.filemanager.destinations import FileDestinations
 from octoprint.filemanager import NoSuchStorage
+import os
 import time
 from pathlib import Path
 import socket
 from peerprint.filesharing import Fileshare
-from peerprint.server import P2PServer, P2PServerOpts, RpcError
+from peerprint.server import P2PServer, P2PServerOpts
+from peerprint.client import RpcError, P2PClient
 
 class Plugin:
     PP_CONNECT_ATTEMPTS = 3
@@ -16,8 +19,13 @@ class Plugin:
         self._settings = settings
         self._logger = logger
         self.server = None
+        self.client = None
+        self.fileshare = None
         self._data_folder = data_folder
         self._file_manager = file_manager
+
+    def _set_key(self, k, v):
+        return self._settings.set([k.setting], v)
 
     def _get_key(self, k, default=None):
         v = self._settings.get([k.setting])
@@ -34,6 +42,31 @@ class Plugin:
     def start(self):
         self._init_server()
         self._init_fileshare()
+        self.tick() # update statuses
+
+    def tick(self):
+        # Forward statuses to settings page
+        if self.client is None:
+            self._set_key(Keys.CLIENT_STATUS, "Not initialized")
+        elif self.client.is_ready():
+            self._set_key(Keys.CLIENT_STATUS, "Connected to server")
+        else:
+            self._set_key(Keys.CLIENT_STATUS, "Not connected")
+
+        if self.server is None:
+            self._set_key(Keys.SERVER_STATUS, "Not initialized (possibly remote)")
+        elif self.server.is_ready():
+            self._set_key(Keys.SERVER_STATUS, "Running")
+        else:
+            self._set_key(Keys.SERVER_STATUS, "Not running")
+
+        if self.fileshare is None:
+            self._set_key(Keys.IPFS_STATUS, "Not initialized")
+        elif self.fileshare.is_ready():
+            self._set_key(Keys.IPFS_STATUS, "Running")
+        else:
+            self._set_key(Keys.IPFS_STATUS, "Not Running")
+
 
     def _can_bind_addr(self, addr):
         try:
@@ -98,25 +131,15 @@ class Plugin:
             f"{PRINT_FILE_DIR}/fileshare/", sd=False
         )
         self._logger.info("Starting fileshare")
-        self._fileshare = fs_cls(self.fileshare_dir, self._logger)
+        self._set_key(Keys.IPFS_STATUS, "Initializing")
+        self.fileshare = fs_cls(self.fileshare_dir, self._logger)
 
-    def cleanup_fileshare(self):
+    def cleanup_fileshare(self, keep_hashes):
         if not os.path.exists(self.fileshare_dir):
             return n
 
-        # This cleans up all non-useful fileshare files across all network queues, so they aren't just taking up space.
-        # First we collect all non-local queue items hosted by us - these are excluded from cleanup as someone may need to fetch them.
-        keep_hashes = set()
-        for name, q in self.q.queues.items():
-            if name == ARCHIVE_QUEUE or name == DEFAULT_QUEUE:
-                continue
-            for j in q.as_dict()["jobs"]:
-                if j["peer_"] == q.addr or j["acquired_by_"] == q.addr:
-                    keep_hashes.add(j["hash"])
-
         # Loop through all .gjob and .gcode files in base directory and delete them if they aren't referenced or acquired by us
         n = 0
-
         for d in os.listdir(self.fileshare_dir):
             name, suffix = os.path.splitext(d)
             if suffix not in ("", ".gjob", ".gcode", ".gco"):
@@ -136,34 +159,47 @@ class Plugin:
 
 
     def _init_server(self):
+        self._set_key(Keys.CLIENT_STATUS, "Initializing")
         addr = self._get_key(Keys.SERVER_ADDR)
         start_proc = False
         if addr == "":
             addr = self.get_local_addr()
             start_proc = True
+            self._set_key(Keys.SERVER_STATUS, f"Initializing ({addr})")
+        else:
+            self._set_key(Keys.SERVER_STATUS, f"Remove ({addr})")
         self._logger.debug(f"Init P2P server (addr={addr}, start_proc={start_proc}))")
 
-        certsDir = Path(self._data_folder) / "peerprint_certs"
+        certsDir = Path(self._data_folder) / "certs"
         if not certsDir.exists():
             certsDir.mkdir()
+        connDir = Path(self._data_folder) / "connections"
+        if not connDir.exists():
+            connDir.mkdir()
 
-        self.server = P2PServer(
-            P2PServerOpts(
-                addr=addr,
-                www="0.0.0.0:8334",
-                cfg=str(Path(self._data_folder) / "peerprint.cfg"),
-                certsDir=str(certsDir),
-                serverCert="server.crt",
-                serverKey="server.key",
-                rootCert="rootCA.crt",
-            ),
-            self._logger,
-            start_proc=start_proc,
-        )
+        if start_proc:
+            self.server = P2PServer(
+                P2PServerOpts(
+                    addr=addr,
+                    www="0.0.0.0:8334",
+                    driverCfg=str(Path(self._data_folder) / "driver.yaml"),
+                    wwwCfg=str(Path(self._data_folder) / "www.yaml"),
+                    regDBWorld=str(Path(self._data_folder) / "registry_world.sqlite3"),
+                    regDBLocal=str(Path(self._data_folder) / "registry_local.sqlite3"),
+                    certsDir=str(certsDir),
+                    connDir=str(connDir),
+                    serverCert="server.crt",
+                    serverKey="server.key",
+                    rootCert="rootCA.crt",
+                ),
+                self._logger,
+            )
+        self.client = P2PClient(addr, str(certsDir), self._logger)
 
         for i in range(self.PP_CONNECT_ATTEMPTS):
+            self._set_key(Keys.CLIENT_STATUS, f"Waiting for P2P server...")
             self._logger.debug("Waiting for P2P server...")
-            if self.server.ping():
+            if self.client.ping():
                 self._logger.debug("P2P server ready")
                 break
             time.sleep(self.PP_CONNECT_DELAY)

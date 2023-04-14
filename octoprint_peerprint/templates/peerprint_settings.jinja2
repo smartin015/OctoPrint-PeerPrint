@@ -20,11 +20,20 @@
   </div>
 </fieldset></form>
 
+<h4>Status</h4>
+
+<p>Client and server statuses are checked every 30 seconds. Close the settings page, wait 30 seconds, then reopen to refresh (check console logs for details).</p>
+
+<ul>
+  <li>PeerPrint server: <span data-bind="text: settings.plugins.octoprint_peerprint.peerprint_server_status">/span></li>
+  <li>PeerPrint client: <span data-bind="text: settings.plugins.octoprint_peerprint.peerprint_client_status">/span></li>
+  <li>IPFS server: <span data-bind="text: settings.plugins.octoprint_peerprint.peerprint_ipfs_status">/span></li>
+</ul>
 
 <h4>Queues & More</h4>
 
 <p>All other PeerPrint settings are configured on the PeerPrint server.</p>
 
-<a target="_blank" data-bind="attr: {href: settings.plugins.octoprint_peerprint.peerprint_server_addr() || 'http://localhost:8334'} ">Click here</a> to visit the server settings page.
+<a target="_blank" data-bind="attr: {href: settings.plugins.octoprint_peerprint.peerprint_server_addr() || 'https://localhost:8334'} ">Click here</a> to visit the server settings page.
 
 

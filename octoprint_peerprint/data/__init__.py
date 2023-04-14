@@ -2,6 +2,10 @@ from enum import Enum
 
 class Keys(Enum):
     SERVER_ADDR = ("peerprint_server_addr", "")
+    SERVER_STATUS = ("peerprint_server_status", "Unknown")
+    CLIENT_STATUS = ("peerprint_client_status", "Unknown")
+    IPFS_STATUS = ("peerprint_ipfs_status", "Unknown")
+
     def __init__(self, setting, default):
         self.setting = setting
         if setting.endswith("_script") and not default.startswith(";"):

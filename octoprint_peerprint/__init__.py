@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 
 import octoprint.plugin
+from octoprint.util import RepeatedTimer
 from .plugin import Plugin
 from .data import ASSETS, update_info, Keys, TEMPLATES
 
@@ -10,8 +11,9 @@ class PeerprintPlugin(octoprint.plugin.SettingsPlugin,
     octoprint.plugin.TemplatePlugin,
     octoprint.plugin.StartupPlugin
 ):
+    SERVER_CHECK_PD = 30.0
 
-    def on_after_startup(self):
+    def on_startup(self, *args, **kwargs):
         self._plugin = Plugin(
             self._settings,
             self._file_manager,
@@ -19,7 +21,14 @@ class PeerprintPlugin(octoprint.plugin.SettingsPlugin,
             self._logger,
         )
         self._plugin.start()
-    
+ 
+    def on_after_startup(self):
+        self.watchdog = RepeatedTimer(self.SERVER_CHECK_PD, self._plugin.tick)
+        self.watchdog.start()
+
+    def get_plugin(self):
+        return self._plugin
+
     ##~~ SettingsPlugin mixin
 
     def get_settings_defaults(self):
